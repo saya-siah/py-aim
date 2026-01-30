@@ -1,6 +1,11 @@
+# Python environment folders
+.venv/
 __pycache__/
-*.py[cod]
-.env
+*.pyc
+
+# System junk
 .DS_Store
-dist/
-build/
+Thumbs.db
+
+# Settings you might want to keep separate
+config.txt
