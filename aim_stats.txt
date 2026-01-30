@@ -2,3 +2,12 @@
 [01/29 20:40] Grid    | 80/91 Hits | 87.9% | Sens: 0.14 | Size: 14
 [01/29 20:41] Grid    | 82/91 Hits | 90.1% | Sens: 0.14 | Size: 14
 [01/29 20:43] Cluster | 98/98 Hits | 100.0% | Sens: 0.14 | Size: 14
+[01/30 12:55] Grid    | 43/52 Hits | 82.7% | Sens: 0.125 | Size: 20
+[01/30 12:56] Grid    | 19/21 Hits | 90.5% | Sens: 0.12 | Size: 20
+[01/30 12:58] Grid    | 66/70 Hits | 94.3% | Sens: 0.15 | Size: 20
+[01/30 13:02] Grid    | 98/103 Hits | 95.1% | Sens: 0.17 | Size: 20
+[01/30 13:03] Cluster | 123/127 Hits | 96.9% | Sens: 0.12 | Size: 20
+[01/30 13:04] Strafe  | 62/98 Hits | 63.3% | Sens: 0.12 | Size: 20 | Spd: 1.05
+[01/30 13:05] Cluster | 122/127 Hits | 96.1% | Sens: 0.12 | Size: 20
+[01/30 13:07] Micro   | 126/116 Hits | 108.6% | Sens: 0.12 | Size: 20
+[01/30 13:10] Strafe  | 72/109 Hits | 66.1% | Sens: 0.12 | Size: 20 | Spd: 1.05
