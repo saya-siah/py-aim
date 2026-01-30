@@ -1,6 +1,6 @@
 import pygame, random, sys, datetime, os, ctypes
 
-# --- 1. WINDOWS DPI FIX (Forces PC to use real pixels) ---
+# --- 1. WINDOWS DPI FIX ---
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
 except:
@@ -9,22 +9,20 @@ except:
 pygame.init()
 
 # --- 2. DYNAMIC SCALING LOGIC ---
-# We get the width of whatever monitor you are currently on.
 info = pygame.display.Info()
 CURRENT_W = info.current_w
-
-# Use 1920 (your PC) as the "Base 1.0"
-# On PC: 1920/1920 = 1.0 | On Mac: 2560/1920 = 1.33
+# Baseline is your 23.6" PC (1920px)
 SCALE = CURRENT_W / 1920
 
-# --- 3. ADJUSTED INITIAL SETTINGS ---
+# --- 3. INITIAL SETTINGS ---
 MY_DPI = 1600
 VAL_YAW, VAL_FOV = 0.07, 103
-
-# Scale the window and targets relative to the screen density
 WIDTH = int(1200 * SCALE)
 HEIGHT = int(950 * SCALE)
-FPS, ROUND_TIME = 144, 60
+
+# UNLOCKED FPS for Mac M4 smoothness (dt handles the math)
+FPS = 0 
+ROUND_TIME = 60
 
 # --- Colors & Lists ---
 COLORS = [(0, 255, 255), (0, 255, 0), (255, 0, 255), (255, 255, 255), (255, 255, 0)]
@@ -52,11 +50,9 @@ def save_stats(mode_name, shots, hits, acc, sens, size, speed):
     with open("aim_stats.txt", "a") as f: f.write(info + "\n")
 
 def draw_xhair(surf, x, y, color, t_idx):
-    # Scale crosshair thickness and length
     thick = max(1, int(2 * SCALE))
     length = int(8 * SCALE)
     dot_rad = int(3 * SCALE)
-
     if t_idx == 0: pygame.draw.circle(surf, color, (int(x), int(y)), dot_rad)
     elif t_idx == 1:
         pygame.draw.line(surf, color, (x-length, y), (x+length, y), thick)
@@ -69,7 +65,6 @@ def run():
     val_sens, col_idx, type_idx, t_size, s_speed = load_settings()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     
-    # Scale fonts so they aren't tiny on Mac
     font = pygame.font.SysFont("Verdana", int(14 * SCALE))
     l_font = pygame.font.SysFont("Verdana", int(40 * SCALE))
     m_font = pygame.font.SysFont("Verdana", int(22 * SCALE))
@@ -80,12 +75,17 @@ def run():
     history_view_mode = 1 
 
     while True:
-        # px_per_cnt is now resolution-independent because it uses WIDTH which is scaled
+        # --- DELTA TIME (The Secret to Smoothness) ---
+        dt = clock.tick(FPS) / 1000.0
+        dt = min(dt, 0.1) # Cap dt to prevent glitches during lag spikes
+
         px_per_cnt = (val_sens * VAL_YAW * WIDTH) / VAL_FOV
         screen.fill((10, 10, 15))
         
         for e in pygame.event.get():
-            if e.type == pygame.QUIT: save_settings(val_sens, col_idx, type_idx, t_size, s_speed); pygame.quit(); sys.exit()
+            if e.type == pygame.QUIT: 
+                save_settings(val_sens, col_idx, type_idx, t_size, s_speed)
+                pygame.quit(); sys.exit()
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_ESCAPE:
                     if state == "GAME": state = "MENU"; pygame.mouse.set_visible(True)
@@ -101,7 +101,6 @@ def run():
                 elif e.unicode in "1234":
                     mode, score, shots, hits, start_t, state = int(e.unicode), 0, 0, 0, pygame.time.get_ticks(), "GAME"
                     targets = []
-                    # Scale spawn areas
                     if mode == 1: [targets.append([random.randint(int(200*SCALE), int(1000*SCALE)), random.randint(int(200*SCALE), int(700*SCALE))]) for _ in range(3)]
                     elif mode == 2: targets.append([random.randint(int(200*SCALE), int(1000*SCALE)), HEIGHT//2])
                     elif mode in [3, 4]:
@@ -124,7 +123,6 @@ def run():
                 shots += 1
                 for t in targets[:]:
                     d = ((cx-t[0])**2 + (cy-t[1])**2)**0.5
-                    # Target hit detection uses t_size scaled by SCALE
                     limit = (t_size * SCALE) if mode <= 2 else (t_size * SCALE * 0.6 if mode == 3 else t_size * SCALE * 0.4)
                     if d <= limit:
                         hits += 1; score += 1; targets.remove(t)
@@ -144,23 +142,27 @@ def run():
             cx, cy = max(0, min(WIDTH, cx + dx * px_per_cnt)), max(0, min(HEIGHT, cy + dy * px_per_cnt))
             
             if mode == 2 and targets:
-                s_timer -= 1
-                if s_timer <= 0: s_dir *= -1; s_timer = random.randint(40, 150)
-                # Strafe speed multiplied by SCALE so physical movement speed matches
-                targets[0][0] += s_dir * s_speed * SCALE
-                if targets[0][0] < 150*SCALE or targets[0][0] > 1050*SCALE: s_dir *= -1
+                s_timer -= dt
+                if s_timer <= 0: 
+                    s_dir *= -1
+                    s_timer = random.uniform(0.4, 1.1) 
+                # Smooth movement using dt
+                targets[0][0] += s_dir * (s_speed * 450 * SCALE) * dt
+                if targets[0][0] < 150*SCALE: s_dir = 1
+                elif targets[0][0] > 1050*SCALE: s_dir = -1
             
             for t in targets:
                 rad = (t_size * SCALE) if mode <= 2 else (t_size * SCALE * 0.6 if mode == 3 else t_size * SCALE * 0.4)
                 pygame.draw.circle(screen, (255, 60, 60), (int(t[0]), int(t[1])), int(rad))
             
             draw_xhair(screen, cx, cy, COLORS[col_idx], type_idx)
-            screen.blit(font.render(f"TIME: {rem:.1f}s | SCORE: {int(score)}", True, (255, 255, 255)), (20, 20))
+            # FPS Display
+            curr_fps = int(clock.get_fps())
+            screen.blit(font.render(f"TIME: {rem:.1f}s | SCORE: {score} | FPS: {curr_fps}", True, (255, 255, 255)), (20, 20))
 
         elif state == "HISTORY":
             h_mode_name = {1:"Grid", 2:"Strafe", 3:"Cluster", 4:"Micro"}[history_view_mode]
             screen.blit(l_font.render(f"{h_mode_name.upper()} PROGRESS", True, (0, 255, 150)), (50*SCALE, 30*SCALE))
-            
             history_data = []
             if os.path.exists("aim_stats.txt"):
                 with open("aim_stats.txt", "r") as f:
@@ -173,32 +175,17 @@ def run():
                             hits_val = int(parts[1].split('/')[0].strip())
                             history_data.append(hits_val)
                         except: pass
-
-            # --- GRAPH SCALING ---
             g_x, g_y, g_w, g_h = 600*SCALE, 100*SCALE, 500*SCALE, 300*SCALE
             pygame.draw.rect(screen, (20, 20, 30), (g_x, g_y, g_w, g_h))
-            pygame.draw.line(screen, (100, 100, 100), (g_x, g_y + g_h), (g_x + g_w, g_y + g_h), 2)
-            pygame.draw.line(screen, (100, 100, 100), (g_x, g_y), (g_x, g_y + g_h), 2)
-
             if len(history_data) > 1:
                 max_h = max(history_data) if max(history_data) > 0 else 1
-                points = []
-                for i, val in enumerate(history_data):
-                    px = g_x + (i * (g_w / (len(history_data)-1)))
-                    py = g_y + g_h - (val / (max_h * 1.2) * g_h)
-                    points.append((px, py))
+                points = [(g_x + (i * (g_w / (len(history_data)-1))), g_y + g_h - (val / (max_h * 1.2) * g_h)) for i, val in enumerate(history_data)]
                 pygame.draw.lines(screen, (0, 255, 255), False, points, 3)
-                for p in points: pygame.draw.circle(screen, (255, 255, 255), (int(p[0]), int(p[1])), int(4*SCALE))
-
             screen.blit(font.render("Press 1-4 to switch Mode Graph | M: Menu", True, (255, 255, 0)), (50*SCALE, HEIGHT-(40*SCALE)))
 
         elif state == "SETTINGS":
             screen.blit(l_font.render("SETTINGS", True, (0, 255, 200)), (100*SCALE, 80*SCALE))
-            screen.blit(font.render(f"SENSITIVITY: {val_sens} (G/J)", True, (255,255,255)), (100*SCALE, 180*SCALE))
-            screen.blit(font.render(f"TARGET SIZE: {t_size} (A/D)", True, (255,255,255)), (100*SCALE, 230*SCALE))
-            screen.blit(font.render(f"STRAFE SPEED: {s_speed} (Q/W)", True, (255,255,255)), (100*SCALE, 280*SCALE))
-            screen.blit(font.render(f"COLOR: {COLOR_NAMES[col_idx]} (C) | TYPE: {XHAIR_TYPES[type_idx]} (T)", True, (255,255,255)), (100*SCALE, 330*SCALE))
-            pygame.draw.rect(screen, (20, 20, 30), (500*SCALE, 180*SCALE, 200*SCALE, 200*SCALE))
+            screen.blit(font.render(f"SENSITIVITY: {val_sens} (G/J) | SIZE: {t_size} (A/D)", True, (255,255,255)), (100*SCALE, 180*SCALE))
             pygame.draw.circle(screen, (255, 60, 60), (int(600*SCALE), int(280*SCALE)), int(t_size*SCALE))
             draw_xhair(screen, 600*SCALE, 280*SCALE, COLORS[col_idx], type_idx)
             screen.blit(font.render("M: Menu", True, (255,255,0)), (100*SCALE, 450*SCALE))
@@ -209,7 +196,7 @@ def run():
                 screen.blit(m_font.render(txt, True, (200, 200, 200)), (WIDTH//2 - int(120*SCALE), (220*SCALE) + (i*50*SCALE)))
             screen.blit(font.render("S: Settings | H: History | ESC: Quit", True, (0, 255, 200)), (WIDTH//2 - int(140*SCALE), 500*SCALE))
 
-        pygame.display.flip(); clock.tick(FPS)
+        pygame.display.flip()
 
 if __name__ == "__main__":
     run()
