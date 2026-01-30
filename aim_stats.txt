@@ -11,3 +11,5 @@
 [01/30 13:05] Cluster | 122/127 Hits | 96.1% | Sens: 0.12 | Size: 20
 [01/30 13:07] Micro   | 126/116 Hits | 108.6% | Sens: 0.12 | Size: 20
 [01/30 13:10] Strafe  | 72/109 Hits | 66.1% | Sens: 0.12 | Size: 20 | Spd: 1.05
+[01/30 13:16] Grid    | 82/88 Hits | 93.2% | Sens: 0.12 | Size: 20
+[01/30 13:18] Micro   | 117/115 Hits | 101.7% | Sens: 0.12 | Size: 20
